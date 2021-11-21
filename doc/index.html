@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Bootstrap Navbar Sidebar - Fixed to Left or Right</title>
+    <link rel="stylesheet"
+          id="theme_link"
+          href="https://cdnjs.cloudflare.com/ajax/libs/bootswatch/4.3.1/materia/bootstrap.min.css"/>
+    <link rel="stylesheet" href="./css/navbar-fixed-right.min.css">
+    <link rel="stylesheet" href="./css/navbar-fixed-left.min.css">
+    <link rel="stylesheet" href="./css/docs.css">
+    <script
+            src="https://code.jquery.com/jquery-3.4.1.slim.min.js"
+            integrity="sha256-pasqAKBDmFT4eHoN2ndd6lN370kFiGUFyTiUHWhU7k8="
+            crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+            integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+            crossorigin="anonymous"></script>
+    <script src="./css/docs.js"></script>
+    <script async defer src="https://buttons.github.io/buttons.js"></script>
+    <style>
+        pre {
+            display: inline-block;
+            background-color: black;
+            border-radius: 3px;
+            padding: 0.1em 0.2em;
+            color: royalblue;
+        }
+        img {
+            width: "10px";
+            height: "10px";
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-md navbar-dark bg-primary fixed-top p-1 ">
+        <a class="navbar-brand" href>SpringBatch学習メモ</a>
+        <div class="collapse navbar-collapse " style="line-height: 0.5em"> 
+            <ul class="navbar-nav" >
+                <li class="nav-item">
+                    <a class="nav-link" href="#1">1.はじめに</a>
+                    <ul>
+                        <a class="nav-link" href="#1-1">1-1.SpringのDIについて</a>
+                        <a class="nav-link" href="#1-2">1-2.SpringBatchの概要</a>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#2">2.環境構築</a>
+                    <ul>
+                        <a class="nav-link" href="#2-1">2-1.Postgresqlインストール</a>
+                        <a class="nav-link" href="#2-2">2-2.DB構築</a>
+                        <a class="nav-link" href="#2-3">2-3.プロジェクトの作成</a>
+                        <a class="nav-link" href="#2-4">2-4.GitHubに登録</a>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1 id="1">1.はじめに</h1>
+        <p>SpringBatchの前提知識は以下の通り。</p>
+        <ul>
+            <h2 id="1-1">1-1.SpringのDIについて</h2>
+            <p>
+                DI(Dependancy Injection)とは、インスタンスを変数に代入すること。
+                    <br><br>
+                    [DIの例]
+                    <br>
+                    <pre class="pre-scrollable"><code>
+    puclic class Hoge {
+        private job = new testJob();
+    }
+                    </code></pre>
+                    <br>
+                    上記の例では、testJobのインスタンスを生成し、jobに代入している。
+                    testJobを利用した一通りのテストが完了し、testJobからprobJonに切り替えを行う場合は、依存クラスを変更する目的でコードを改修する必要がある。                    
+                    <br><br>
+                    SpringのDIは、この問題を解決するために、インスタンスの生成と変数への代入を自動管理する機能を提供している。
+                    SpringのDIを利用すると、上記の例は以下のようなコードとなる。
+                    <br><br>
+                    [SpringによるDIの例]
+                    <br>
+                    <pre class="pre-scrollable"><code>
+    @Component
+    puclic class TestJob implements Job {
+        ...
+    }
+    @Component
+    public class Hoge{
+        @Autowired
+        private Job job;
+    }
+                    </code></pre>
+                    <br>
+                    @Componentで、Jobインターフェースを実装したTestJobをDIコンテナにBeanとして登録する。
+                    これにより、SpringによりJobクラスのインスタンス生成が管理される。
+                    <br>
+                    @Autowiredで、JobインスタンスをDIしている。このコードはSpringで管理されるため、newの記述が不要となる。
+                    <br>
+                    testJobからprobJobに切り替えを行う際は、TestJobの代わりにprobJobをBean登録する。
+                    Hogeクラスの改修は不要となる。
+                    <br><br>
+                    上記の通り、SpringはBean登録されたクラスについて、インスタンス生成の管理を行う。
+                    このライフサイクルは、Bean登録のコードに@Scope(~)を付与することで設定する。
+                    <br><br>
+                    <table class="table">
+                        <tr>
+                            <th>スコープ</th>
+                            <th>説明</th>
+                        </th>
+                        <tr>
+                            <td>@Scope("singleton")</td>
+                            <td>
+                                Spring起動時にインスタンスを1つだけ生成する。Springを停止するまで、このインスタンスを使いまわす。
+                                Scopeアノテーションを付与しない場合はデフォルトでこの設定となる。
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>@Scope("prototype")</td>
+                            <td>@AutowiredでDIする度に新しいインスタンスの生成と破棄を行う。</td>
+                        </tr>
+                    </table>
+                    <br>
+                    まとめると、SpringのDIは以下のような動きをする。
+                    <br><br>
+                    <ol>
+                        <li>@Componentなどがついたクラスを起動時に探す。(ComponentScan)</li>
+                        <li>ヒットしたクラスをBeanとしてDIコンテナに登録する。</li>
+                        <li>Scopeの設定に従い、インスタンスのライフサイクル管理を行う。</li>
+                        <li>@Autoriredが付与された箇所にインスタンスを代入する。</li>
+                    </ol>
+            </p>
+        </ul>
+        <ul>
+            <h2 id="1-2">1-2.SpringBatchの概要</h2>
+            <p>
+                SpringBatchはSpringを使ってバッチアプリケーションを開発するためのフレームワーク。
+                DI、バリデーション、DBアクセスなどSpringが標準で提供する機能に加えて、ファイルやDBの読み込み、書き込み、ジョブ管理など、バッチがよく利用する機能もサポートされる。
+                <br><br>
+                SpringBatchのアーキテクチャは以下の通りとなる。
+                <br><br>
+                <img class="img-fluid" src="./image/springBatch-arc.png" alt="SpringBatchのアーキテクチャ" title="SpringBatchのアーキテクチャ">
+                <br><br>
+                <table class="table">
+                    <tr>
+                        <th>項目</th>
+                        <th>説明</th>
+                    </tr>
+                    <tr>
+                        <td>JobRepository</td>
+                        <td>
+                            バッチの実行結果をDBに保存してくれる機能
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>JobLauncher</td>
+                        <td>
+                            バッチを実行するトリガー機能
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Job</td>
+                        <td>
+                            バッチの全体を構成している管理単位
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Step</td>
+                        <td>
+                            バッチの最小単位。一つのJobで複数のStepの実行フローを管理する。
+                        </td>
+                    </tr>
+                </table>
+                <br>
+                Stepには、以下の2種類のモデルがあり、バッチの用途で使い分ける。
+
+                <table class="table">
+                    <tr>
+                        <th>項目</th>
+                        <th>説明</th>
+                    </tr>
+                    <tr>
+                        <td>Chunk</td>
+                        <td>データの読み込み、加工、書き込みという一般的なバッチ処理のフレームワークを提供してくれるモデル。
+                            <br>
+                            各処理はChunkが提供する以下のインターフェースを実装する。
+                            <br>
+                            <ul>
+                             <li>ItemReader : データの読み込み</li>
+                             <li>ItemProcessor : データの加工</li>
+                             <li>ItemWriter : データの書き込み</li>
+                            </ul>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Tasklet</td>
+                        <td>
+                            Chunkで対応出来合い機能を実装する場合に利用する。
+                        </td>
+                    </tr>
+                </table>
+            </p>
+        </ul>
+        <h1 id="2">2.環境構築</h1>
+        <p>本章ではSpringBatchを開発を行うための環境構築のメモを記載する。</p>
+        <ul>
+            <h2 id="2-1">2-1.PostgreSQLのインストール</h2>
+            <p>
+                以下のサイトからPostgreSQLをダウンロードする。
+                <br>
+                ※執筆時点で最新版の14.1（Windows版)をダウンロードした。
+                <br>
+                <a href="https://www.enterprisedb.com/downloads/postgres-postgresql-downloads">
+                    https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
+                </a>
+                <br>
+                ダウンロード後、以下の手順でインストールする。
+                <ol>
+                    <li>ダウンロードしたexeファイルをダブルクリックする。</li>
+                    <li>ウィザードが起動したら、Nextを押下する。</li>
+                    <li>インストール先のパスを指定する。ここでは、「C:\PostgreSQL\14」を指定した。</li>
+                    <li>全てのコンポーネントがチェックされていることを確認してNextを押下する。</li>
+                    <li>データ格納フォルダを指定する。ここでは「C:\PostgreSQL\14\data」を指定した。</li>
+                    <li>特権ユーザ(postgres)のパスワード設定する。ここでは「postgres」を指定した。</li>
+                    <li>ポートを指定する。デフォルトのここでは「5432」を指定した。</li>
+                    <li>ロケールを設定するここではデフォルト設定のままにした。</li>
+                    <li>インストール情報のサマリが出力されるため、想定通りであることを確認し、Nextを押下する。</li>
+                    <li>もう一度Nextを押下するとインストールが開始される。</li>
+                    <li>しばらくするとウィザード上にFinishと表示されるのでクリックする。</li>
+                    <li>追加パッケージをインストールするためのスタックビルダが表示されるが、デフォルト構成で利用するため、キャンセルする。</li>
+                </ol>
+            </p>
+        </ul>
+        <ul>
+            <h2 id="2-2">2-2.DBの構築</h2>
+                <P>
+                    以下の手順で、SpringBatchで利用するDBの設定を行う。
+                    <ol>
+                        <li>
+                            スタート→PostgreSQL→pgAdminでpgAdminを起動する。
+                            <br>
+                            ※pgAdminはPostgreSQLの管理コンソール
+                        </li>
+                        <li>起動後、インストール時に設定したパスワードを入力する。</li>
+                        <li>
+                            Servers→Login/Groups Roles→Create→Login/Group Roleを押下する。
+                            <br><br>
+                            <img class="img-fluid" src="image/pa-create-user.png">
+                            <br><br>
+                        </li>
+                        <li>Generalタブでユーザ名をspringBatchに設定する。</li>
+                        <li>Definitionタブでパスワードを設定する。ここでは、「springBatch」とした。</li>
+                        <li>
+                            Privilegesタブで以下の通り、権限設定をする。
+                            <br><br>
+                            <img class="img-fluid" src="image/pa-create-user-privileges.png">
+                            <br><br>
+                        </li>
+                        <li>Saveを押下し、ユーザ作成を完了する。</li>
+                        <li>
+                            Database→Create→Database...をクリックする。
+                            <br><br>
+                            <img class="img-fluid" src="image/pa-create-database.png">
+                            <br><br>
+                        </li>
+                        <li>GeneralタブでDatabase名をspringBatchとする。</li>
+                        <li>Generalタブでデータベースのownerを先ほど作成したユーザ(springBatch)にする。</li>
+                        <li>Saveを押下し、データベース作成を完了する。</li>
+                        <li>
+                            作成したデータベース(springBatch)を右クリック→QueryToolをクリックする。
+                            <br><br>
+                            <img class="img-fluid" src="image/pa-create-table.png">
+                            <br><br>
+                        </li>
+                        <li>
+                            以下のSQL文を実行し、テーブルを作成する。
+                            <br>
+                            ※SQL文の実行は、F5で出来る。
+                            <br>
+                            <pre class="pre-scrollable"><code>
+    Create TABLE IF NOT EXISTS employee(
+    	id INT PRIMARY KEY,
+    	name VARCHAR(50),
+    	age INT,
+    	gender INT
+    );
+                            </code></pre>
+                        </li>
+                        <li>
+                            作成したデータベース(springBatch)→Schemas→Tablesを右クリックし、Refreshする。
+                            <br>
+                            テーブルが作成されたことを確認できる。
+                            <br><br>
+                            <img class="img-fluid" src="image/pa-create-table2.png">
+                            <br><br>
+                        </li>
+                        <li>同様にspringBatch2テーブルも作成する。</li>
+                    </ol>
+                </P>
+        </ul>
+        <ul>
+            <h2 id="2-3">2-3.プロジェクトの作成</h2>
+            <p>
+                STS上でSpringBatchアプリケーション用のプロジェクトを作成する。
+                <br>
+                ※Lombock含めたSTSの設定は実施済みの前提とする。
+                <br>
+                <ol>
+                    <li>
+                        SpringBatchアプリケーション用のワークスペースを設定し、STSを起動する。
+                        <br><br>
+                        <img class="img-fluid" src="image/sts-create-project1.png">
+                        <br><br>
+                    </li>
+                    <li>
+                        プロジェクトの作成を行う。
+                        <br><br>
+                        <img class="img-fluid" src="image/sts-create-project2.png">
+                        <br><br>
+                    </li>
+                    <li>
+                        Springスターター・プロジェクトを選択する。
+                        <br><br>
+                        <img class="img-fluid" src="image/sts-create-project3.png">
+                        <br><br>
+                    </li>
+                    <li>
+                        プロジェクト名を「SpringBatchSample」とする。その他はデフォルト設定のままで次へを押下する。
+                        <br><br>
+                        <img class="img-fluid" src="image/sts-create-project4.png">
+                        <br><br>
+                    </li>
+                    <li>
+                        追加するライブラリを選択し、完了する。
+                        <br><br>
+                        <img class="img-fluid" src="image/sts-create-project5.png">
+                        <br><br>
+                        追加したライブラリは以下の通り。
+                        <br><br>
+                        <table class="table">
+                            <tr>
+                                <th>分類</th>
+                                <th>ライブラリ</th>
+                            </tr>
+                            <tr>
+                                <td rowspan="2">開発ツール</td>
+                                <td>Spring Boot DevTools</td>
+                            </tr>
+                            <tr>
+                                <td>Lombock</td>
+                            </tr>
+                            <tr>
+                                <td>I/O</td>
+                                <td>Spring Batch</td>
+                            </tr>
+                            <tr>
+                                <td rowspan="3">SQL</td>
+                                <td>JDBC API</td>
+                            </tr>
+                            <tr><td>Spring Data JDBC</td></tr>
+                            <tr><td>H2 Database</td></tr>
+                        </table>
+                    </li>
+                </ol>
+            </p>
+            <br><br>
+            (2021年11月22日追記)
+            <br>
+            上記手順でSpringBatchのプロジェクトを作成したところ、入門コンテンツのインポートが79%まで進んだところで止まってしまい、プロジェクトの作成が完了しないことが気が付いた。
+            <br>
+            <a href="https://teratail.com/questions/361070">STSのバグの模様。</a>
+            <br>
+            代わりに以下のコマンドでMavenでプロジェクトを作成し、STSにMavenプロジェクトとして取り込みを行った。
+            <br>
+            [プロンプトログ]
+            <pre class="pre-scrollable"><code>
+    $ mvn archetype:generate \
+    >   -DarchetypeGroupId=org.terasoluna.batch \
+    >   -DarchetypeArtifactId=terasoluna-batch-archetype \
+    >   -DarchetypeVersion=5.1.1.RELEASE
+            </code></pre>
+        </ul>
+        <ul>
+            <h2 id="2-4">2-4.GitHubに登録</h2>
+            <p>
+                以下手順で作成したプロジェクトをGitHubに登録する。
+                <ol>
+                    <li>GitHub上に新規リポジトリを作成する。</li>
+                    <li>
+                        STS起動時に作成したワークスペース配下のSpringBatchSampleにコマンドプロンプトで移動し、以下のコマンドを実行する。
+                        <pre class="pre-scrollable"><code>
+    git init
+    echo "# Study Spring Boot" >> README.md
+    git add .
+    git commit -m "first commit"
+    git remote add origin git@github.com:yushin1402/SpringBatch.git
+    git push -u origin master
+                        </code></pre>
+                    </li>
+                    <li>
+                        GitHubのリポジトリ上にコミットされたことを確認する。
+                        <br><br>
+                        <img class="img-fluid" src="image/git-commit1.png">
+                        <br><br>
+                    </li>
+                    <li>
+                        GitHubのリポジトリページ上部のSettingを押下する。
+                        <br>
+                        GitHub Pagesの項目でClick it out hereをクリックし、設定ページに移動する。
+                        <br><br>
+                        <img class="img-fluid" src="image/git-commit2.png">
+                        <br><br>
+                    </li>
+                    <li>
+                        SourceをBranche:masterの/rootに指定する。(/docをドキュメントの置き場所にしたほうが良かったか。。。)
+                        <br>
+                        このままSaveする。
+                        <br><br>
+                        <img class="img-fluid" src="image/git-commit3.png">
+                        <br><br>
+                    </li>
+                    <li>しばらく待った後、「https://yushin1402.github.io/SpringBatch/」にアクセスすると本ページ(index.html)が公開されていることを確認出来る。</li>
+                </ol>
+            </p>
+        </ul>
+    </div>
+</body>
+</html>
