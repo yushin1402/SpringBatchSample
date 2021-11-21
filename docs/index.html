@@ -370,18 +370,19 @@
             (2021年11月22日追記)
             <br>
             上記手順でSpringBatchのプロジェクトを作成したところ、入門コンテンツのインポートが79%まで進んだところで止まってしまい、プロジェクトの作成が完了しないことが気が付いた。
-            <br>
             <a href="https://teratail.com/questions/361070">STSのバグの模様。</a>
             <br>
-            代わりに以下のコマンドでMavenでプロジェクトを作成し、STSにMavenプロジェクトとして取り込みを行った。
-            <br>
-            [プロンプトログ]
-            <pre class="pre-scrollable"><code>
-    $ mvn archetype:generate \
-    >   -DarchetypeGroupId=org.terasoluna.batch \
-    >   -DarchetypeArtifactId=terasoluna-batch-archetype \
-    >   -DarchetypeVersion=5.1.1.RELEASE
-            </code></pre>
+            代わりに以下手順でプロジェクトを作成した。
+            <ol>
+                <li>
+                    <a href="https://start.spring.io/">spring initilizer</a>で、プロジェクトを作成し、ZIPファイルをダウンロード
+                    <br>
+                    ※プロジェクト情報は、上記でSpring プロジェクト・スターターを利用した際と同様のものを利用
+                </li>
+                <li>ダウンロードしたzipファイルを解凍</li>
+                <li>解凍したフォルダで、<code>mvn spring-boot:run</code>を実行</li>
+                <li>正常にビルド出来たことを確認後、STSから既存Mavenプロジェクトとしてインポート</li>
+            </ol>
         </ul>
         <ul>
             <h2 id="2-4">2-4.GitHubに登録</h2>
