@@ -54,6 +54,10 @@
                         <a class="nav-link" href="#2-3">2-3.プロジェクトの作成</a>
                         <a class="nav-link" href="#2-4">2-4.GitHubに登録</a>
                     </ul>
+                    <a class="nav-link" href="#3">3.サンプルアプリ作成</a>
+                    <ul>
+                        <a class="nav-link" href="#3-1">3-1.Taskletの作成</a>
+                    </ul>
                 </li>
             </ul>
         </div>
@@ -427,6 +431,234 @@
                 </ol>
             </p>
         </ul>
+        <h1 id="3">3.サンプルアプリの作成</h1>
+        <p>
+            ログ出力を行う簡単なサンプルアプリの作成を行う。
+            <ul>
+                <h2 id="3-1">3-1.taskletの作成</h2>
+                ログに「Hello World」を出力するバッチをtaskletで作成する。
+                <br><br>
+                [編集するファイル]
+                <br>
+                <table class="table">
+                    <tr>
+                        <th>ファイル名</th>
+                        <th>説明</th>
+                    </tr>
+                    <tr>
+                        <td>com.example.batch.config</td>
+                        <td>src/main/java配下に左記パッケージを作成する。</td>
+                    </tr>
+                    <tr>
+                        <td>BatchConfig.java</td>
+                        <td>com.example.batch.configに左記Javaクラスを作成する。</td>
+                    </tr>
+                    <tr>
+                        <td>com.example.batch.tasklet</td>
+                        <td>
+                            src/main/java配下に左記パッケージを作成する。
+                            <br>
+                            Taskletインターフェースを利用して、Hello Worldをログ出力するtaskletを実装する。
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>HelloTasklet.java</td>
+                        <td>com.example.batch.taskletに左記Javaクラスを作成する。</td>
+                    </tr>
+                </table>
+                <br>
+                <ol>
+                    <li>HelloTasklet.javaの作成</li>
+                    以下の通り、実装する。
+                    <br><br>
+                    <pre  class="pre-scrollable"><code>
+        package com.example.batch.tasklet;
+        import org.springframework.batch.core.StepContribution;
+        import org.springframework.batch.core.configuration.annotation.StepScope;
+        import org.springframework.batch.core.scope.context.ChunkContext;
+        import org.springframework.batch.core.step.tasklet.Tasklet;
+        import org.springframework.batch.repeat.RepeatStatus;
+        import org.springframework.stereotype.Component;
+        import lombok.extern.slf4j.Slf4j;
+        
+        @Component
+        @StepScope
+        @Slf4j
+        
+        public class HelloTasklet implements Tasklet{
+            
+            @Override
+            public RepeatStatus execute(StepContribution contribution, 
+                    ChunkContext chunkContext) throws Exception {
+                log.info("Hello World");
+                return RepeatStatus.FINISHED;
+            }
+        
+        }                                
+                    </code></pre>
+                    <br><br>
+                    [ポイント]
+                    <ol>
+                        <li>
+                            Taskletインターフェースを実装することで、taskletを作成することができる。
+                            <br>
+                            <code>Tasklet.execute(StepContribution, ChunkContext)</code>をオーバーライドすることで、tasletを実装する。
+                            <br>
+                            <a href src="https://spring.pleiades.io/spring-batch/docs/current/api/org/springframework/batch/core/step/tasklet/Tasklet.html">公式</a>
+                            では以下の通り説明されている。
+                            <br>
+                            ステップコントリビューションの形で現在のコンテキストを前提として、トランザクション内でこのユニットを処理するために必要なことをすべて実行します。完了した場合、実装は RepeatStatus.FINISHED を返します。そうでない場合は RepeatStatus.CONTINUABLE を返します。失敗すると例外がスローされます。
+                            <br>
+                            パラメーター:
+                            <br>
+                            contribution - 現在のステップ実行を更新するために戻される変更可能な状態
+                            <br>
+                            chunkContext - 再起動間ではなく、呼び出し間で共有される属性
+                        </li>
+                        <li>
+                            <code>@StepScope</code>を設定することで、インスタンスのライフサイクルをデフォルト設定のsingletonから変更する。
+                            <br>
+                            <code>@StepScope</code>により、Stepの開始時にインスタンスが作成され、ステップの完了時にインスタンスが破棄される挙動となる。
+                        </li>
+                        <li>
+                            <code>log.info()</code>は<code>@Slf4j</code>を付与したことで利用できるメソッド。ログの標準出力を行う。
+                        </li>
+                    </ol>
+                    <li>BatchConfig.javaの作成</li>
+                    以下の通り、実装する。
+                    <br><br>
+                    <pre  class="pre-scrollable"><code>
+        package com.example.batch.config;
+        import org.springframework.batch.core.Job;
+        import org.springframework.batch.core.Step;
+        import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
+        import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
+        import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+        import org.springframework.batch.core.launch.support.RunIdIncrementer;
+        import org.springframework.batch.core.step.tasklet.Tasklet;
+        import org.springframework.beans.factory.annotation.Autowired;
+        import org.springframework.context.annotation.Bean;
+        import org.springframework.context.annotation.Configuration;
+        
+        @Configuration
+        @EnableBatchProcessing
+        
+        public class BatchConfig {
+        
+            @Autowired
+            private JobBuilderFactory jobBuilderFactory;
+            
+            @Autowired
+            private StepBuilderFactory stepBuilderFactory;
+            
+            @Autowired
+            private Tasklet helloTasklet;
+            
+            @Bean
+            public Step taskletStep1() {	
+                return stepBuilderFactory.get("HelloTaskletStep1")
+                        .tasklet(helloTasklet)
+                        .build();		
+            }
+            
+            @Bean
+            public Job taskletJob() throws Exception{
+                return jobBuilderFactory.get("HelloWorldTaskletjob")
+                        .incrementer(new RunIdIncrementer())
+                        .start(taskletStep1())
+                        .build();
+            }
+        }            
+                    </code></pre>
+                    <br><br>
+                    [ポイント]
+                    <ol>
+                        <li>
+                            BatchConfig.javaでバッチ処理の作成を行っている。個別に作成したStep処理をまとめてJob化しているイメージとなる。
+                            <br>
+                            <code>@Configutation</code>と<code>@Bean</code>を利用することでJobとTaskletをBean登録している。
+                            <br>
+                            Jobがシェルスクリプトなどのトリガーで実行された際は、Springの処理でDIコンテナからインスタンスを取得して処理するものと思慮。
+                            <br>このあたりのSpringBatchのアーキテクチャの詳細な解説は
+                            <a href src="https://terasoluna-batch.github.io/guideline/5.0.0.RELEASE/ja/single_index.html">Terasolunaの利用ガイド</a>
+                            に記載があるため、要チェック。
+                            <br>
+                            ※Terasolunaの利用ガイドではJobをクラスではなく、XMLファイルで定義している。
+                        </li>
+                        <li>
+                            <code>@EnableBatchProcessing</code>を付与することで、Springバッチの設定に必要なインスタンスをDI出来るようになる。
+                            <br>
+                            上記ソースでは本アノテーションにより、以下のインスタンスをDIしている。
+                            <br>
+                            <table class="table">
+                                <tr>
+                                    <th>インスタンス</th>
+                                    <th>説明</th>
+                                </tr>
+                                <tr>
+                                    <td>JobBuilderFactory</td>
+                                    <td>
+                                        Jobを生成するためのクラス。上記ソースでは
+                                        <br>
+                                        <code>jobBuilderFactory.get("HelloWorldTaskletjob")
+                                        .incrementer(new RunIdIncrementer())
+                                        .start(taskletStep1())
+                                        .build();</code>
+                                        <br>
+                                        で「HelloWorldTaskletjob」と命名したジョブを生成している。このジョブには<code>tasukletStep1()</code>で生成したStepが取り込まれている。
+                                        <br>
+                                        <code>.incrementer(new RunIdIncrementer)</code>は、Jobに一意のIDを割り当てるための処理。
+                                        <br>
+                                        Job名とJobIdはSpringBatchによりDBに登録され、実行履歴が管理される。JobIdは主キーとなるため、重複違反とならないようにインクリメントする処理が必要となる。
+                                        <br>
+                                        <code>RunIdIncrementer</code>はSpringBatchが提供するクラスで、このコンストラクタを呼び出すことで、インクリメントの管理をしてくれる。
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>StepBuilderFactory</td>
+                                    <td>
+                                        Stepを生成するためのクラス。上記ソースでは、
+                                        <br>
+                                        <code>public Step taskletStep1() {	
+                                            return stepBuilderFactory.get("HelloTaskletStep1")
+                                                    .tasklet(helloTasklet)
+                                                    .build();</code>
+                                        <br>
+                                        で「HelloTaskletStep1」と命名したStepを生成している。
+                                        <br>
+                                        <code>.tasklet(helloTasklet)</code>で、HelloTasklet.javaで作成したクラスに記載されたHelloWorldをログ出力するTaskletを取り込み、Stepを作成している。
+                                    </td>
+                                </tr>
+                            </table>
+                        </li>
+                    </ol>
+                </ol>
+                <br>
+                続いて、作成したTaskletを実行する。実際の環境では、シェルスクリプトなどからコマンドラインでバッチ処理を呼び出すが、ここではテストのため、STS上から以下の手順でバッチを実行した。
+                <ol>
+                    <li>
+                        プロジェクトを右クリック→実行→Starting Boot アプリケーション                        
+                    </li>
+                    <br>
+                    <img class="img-fluid" src="./image/sts-execute-project1.png" alt="Tasklet実行" title="Tasklet実行">
+                    <br><br>
+                    <li>
+                        コンソールに以下のようにログ出力される。(一部を抜粋)
+                        <pre class="pre-scrollable"><code>
+        Started SpringBatchSampleApplication in 2.444 seconds (JVM running for 3.358)
+        Running default command line with: []
+        Job: [SimpleJob: [name=HelloWorldTaskletjob]] launched with the following parameters: [{run.id=1}]
+        Executing step: [HelloTaskletStep1]
+        Hello World
+        Step: [HelloTaskletStep1] executed in 29ms
+        Job: [SimpleJob: [name=HelloWorldTaskletjob]] completed with the following parameters: [{run.id=1}] and the following status: [COMPLETED] in 48ms
+                        </code></pre>
+                        HelloWorldTaskletjobがid=1で実行されたことが分かる。また、HelloTaskletStep1がJobから実行されたことが分かる。
+                    </li>
+
+                </ol>
+            </ul>
+        </p>
     </div>
 </body>
 </html>
