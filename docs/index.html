@@ -31,6 +31,9 @@
             width: "10px";
             height: "10px";
         }
+        p{
+            font-size: large;
+        }
     </style>
 </head>
 
@@ -58,6 +61,12 @@
                     <ul>
                         <a class="nav-link" href="#3-1">3-1.Taskletの作成</a>
                         <a class="nav-link" href="#3-2">3-2.Chunkの作成</a>
+                        <a class="nav-link" href="#3-3">3-3.Listenerの作成</a>
+                        <a class="nav-link" href="#3-4">3-4.Job/Stepの連携</a>
+                        <ul>
+                            <a class="nav-link" href="#3-4-1">3-4-1.Tasklet</a>
+                            <a class="nav-link" href="#3-4-2">3-4-2.Chunk</a>
+                        </ul>
                     </ul>
                 </li>
             </ul>
@@ -1026,7 +1035,496 @@
                 なお、inputデータは、"Hello","World","hoge","fuga",null,"The World"であったが、上記のログでは、先頭4件しか処理されていない。
                 <br>
                 これは、ItemReaderの仕様で、<code>null</code>を読み取った場合は後続データが存在しないと判断され、5件目以降のnull,"The World"が処理されないもの。
+                <br><br>
+                <h2 id="3-3">3-3.Listenerの作成</h2>
+                SpringBatchでは主にログ出力にListenerを利用する。Job実行のあらゆるタイミングでListerを起動することが出来る。(AOPのイメージ？)
+                <br>
+                利用できるListenerインターフェースは以下のサイトで確認できる。(公式かは不明)
+                <br>
+                <a href src="https://www.javadevjournal.com/spring-batch/spring-batch-listeners/">
+                    https://www.javadevjournal.com/spring-batch/spring-batch-listeners/
+                </a>
+                <br><br>
+                今回は、作成したChunkのJob実行前後、Step実行前後にログ出力する処理をLisnerを利用して実装する。
+                <br><br>
+                <ol>
+                    <li>リスナー用のパッケージ作成</li>
+                    com.example.batch.listenerパッケージを作成する。
+                    <br><br>
+                    <li>HelloJobListenr.javaの作成</li>
+                    com.example.batch.listener配下にHelloJobListenerクラスを作成する。このクラスでJob実行前後でのログ出力を実装する。
+                    <br><br>
+                    [HelloJobListenr.java]
+                    <br>
+                    <pre class="pre-scrollable"><code>
+        package com.example.batch.listener;
 
+        import org.springframework.batch.core.JobExecution;
+        import org.springframework.batch.core.JobExecutionListener;
+        import org.springframework.stereotype.Component;
+        import lombok.extern.slf4j.Slf4j;
+        
+        @Component
+        @Slf4j
+        public class HelloJobListener implements JobExecutionListener{
+            
+            @Override
+            public void beforeJob(JobExecution jobExecution) {
+                log.info("Before Job:{}",jobExecution);
+            }
+            
+            @Override
+            public void afterJob(JobExecution jobExecution) {
+                log.info("After Job:{}",jobExecution);
+            }
+        
+        }
+                    </code></pre>
+                    <br><br>
+                    [ポイント]
+                    <br>
+                    <ol>
+                        <li>@ComponentでBean登録する。実行定義にHelloJobListenerをDIすることで、利用する。</li>
+                        <li>
+                            Spring Batch提供のJobExecutionListenerインターフェースを実装する。beforeJobメソッドとafterJobメソッドをオーバライドすればよい。
+                            JavaDocは<a href src="https://spring.pleiades.io/spring-batch/docs/current/api/org/springframework/batch/core/JobExecutionListener.html">
+                                こちら
+                            </a>
+                            。
+                        </li>
+                    </ol>
+                    <br><br>
+                    <li>HelloStepListenr.javaの作成</li>
+                    com.example.batch.listener配下にHelloStepListenerクラスを作成する。このクラスでStep実行前後でのログ出力を実装する。
+                    <br><br>
+                    [HelloStepListener.java]
+                    <br>
+                    <pre class="pre-scrollable"><code>
+        package com.example.batch.listener;
+
+        import org.springframework.batch.core.ExitStatus;
+        import org.springframework.batch.core.StepExecution;
+        import org.springframework.batch.core.StepExecutionListener;
+        import org.springframework.stereotype.Component;
+        import lombok.extern.slf4j.Slf4j;
+        
+        @Component
+        @Slf4j
+        public class HelloStepListener implements StepExecutionListener{
+            
+            @Override
+            public void beforeStep(StepExecution stepExecution) {
+                log.info("Before Step:{}",stepExecution);
+            }
+            
+            @Override
+            public ExitStatus afterStep(StepExecution stepExecution) {
+                log.info("After Step:{}",stepExecution);
+                return stepExecution.getExitStatus();
+            }
+        
+        }
+                    </code></pre>
+                    <br><br>
+                    [ポイント]
+                    <br>
+                    <ol>
+                        <li>@ComponentでBean登録する。実行定義にHelloJobListenerをDIすることで、利用する。</li>
+                        <li>
+                            Spring Batch提供のStepExecutionListenerインターフェースを実装する。beforeStepメソッドとafterStepメソッドをオーバライドすればよい。
+                            JavaDocは<a href src="https://spring.pleiades.io/spring-batch/docs/current/api/org/springframework/batch/core/StepExecutionListener.html">
+                                こちら
+                            </a>
+                            。
+                        </li>
+                        <li>afterStepで終了ステータスのリターンが必須となる。リターン値はExitStatusとなる。上記コードではStepExcutionのgeetExitStatusで戻り値を生成している。</li>
+                    </ol>
+                    <br><br>
+                    <li>BatchConfig.javaの作成</li>
+                    上記で作成したListenerをBatchに取り込む。
+                    <br><br>
+                    [BatchConfig.java]
+                    <br>
+                    <pre class="pre-scrollable"><code>
+        package com.example.batch.config;
+
+        import org.springframework.batch.core.Job;
+        import org.springframework.batch.core.JobExecutionListener;
+        import org.springframework.batch.core.Step;
+        import org.springframework.batch.core.StepExecutionListener;
+        import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
+        import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
+        import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+        import org.springframework.batch.core.launch.support.RunIdIncrementer;
+        import org.springframework.batch.item.ItemProcessor;
+        import org.springframework.batch.item.ItemReader;
+        import org.springframework.batch.item.ItemWriter;
+        import org.springframework.beans.factory.annotation.Autowired;
+        import org.springframework.context.annotation.Bean;
+        import org.springframework.context.annotation.Configuration;
+        
+        @Configuration
+        @EnableBatchProcessing
+        
+        public class BatchConfig {
+        
+            @Autowired
+            private JobBuilderFactory jobBuilderFactory;
+            
+            @Autowired
+            private StepBuilderFactory stepBuilderFactory;
+            
+            @Autowired
+            private ItemReader<String> reader;
+        
+            @Autowired
+            private ItemProcessor<String, String> processor;
+        
+            @Autowired
+            private ItemWriter<String> writer;
+            
+            //ListenerのDI追記
+            @Autowired
+            private JobExecutionListener jobListener;
+        
+            //ListenerのDI追記
+            @Autowired
+            private StepExecutionListener stepListener;
+        
+            @Bean
+            public Step chunkStep() {	
+                return stepBuilderFactory.get("HelloChunkStep")
+                        .<String, String>chunk(3)
+                        .reader(reader)
+                        .processor(processor)
+                        .writer(writer)
+                        .listener(stepListener) //StepLisnter追記
+                        .build();
+            }
+            
+            @Bean
+            public Job chunkJob() throws Exception{
+                return jobBuilderFactory.get("HelloWorldChunkjob")
+                        .incrementer(new RunIdIncrementer())
+                        .start(chunkStep())
+                        .listener(jobListener) //JobListner追記
+                        .build();
+            }
+        }                        
+                    </code></pre>
+                    <br><br>
+                    [ポイント]
+                    <br>
+                    <ol>
+                        <li>作成したListenerクラスをDIする。</li>
+                        <li>chunnkStep()とchunkJob()のメソッドチェーンにlistener()を追記。引数にはDIしたインスタンスを利用する。</li>
+                        <li>Taskletからも作成したListenerクラスを同じ方法で呼び出すことが出来る。</li>
+                    </ol>
+                    <br><br>
+                    <li>実行</li>
+                    プロジェクトを実行すると、以下の通り、ログ出力を得ることが出来る。
+                    <br><br>
+                    [実行ログ(抜粋)]
+                    <br>
+                    <pre class="pre-scrollable"><code>
+        Job: [SimpleJob: [name=HelloWorldChunkjob]] launched with the following parameters: [{run.id=1}]
+        Before Job:JobExecution: id=1, version=1, startTime=Sun Nov 28 23:45:59 JST 2021, endTime=null, lastUpdated=Sun Nov 28 23:45:59 JST 2021, status=STARTED, exitStatus=exitCode=UNKNOWN;exitDescription=, job=[JobInstance: id=1, version=0, Job=[HelloWorldChunkjob]], jobParameters=[{run.id=1}]
+        Executing step: [HelloChunkStep]
+        Before Step:StepExecution: id=1, version=1, name=HelloChunkStep, status=STARTED, exitStatus=EXECUTING, readCount=0, filterCount=0, writeCount=0 readSkipCount=0, writeSkipCount=0, processSkipCount=0, commitCount=0, rollbackCount=0, exitDescription=
+        .
+        .
+        .
+        After Step:StepExecution: id=1, version=3, name=HelloChunkStep, status=COMPLETED, exitStatus=COMPLETED, readCount=4, filterCount=0, writeCount=4 readSkipCount=0, writeSkipCount=0, processSkipCount=0, commitCount=2, rollbackCount=0, exitDescription=
+        Step: [HelloChunkStep] executed in 61ms
+        After Job:JobExecution: id=1, version=1, startTime=Sun Nov 28 23:45:59 JST 2021, endTime=Sun Nov 28 23:46:00 JST 2021, lastUpdated=Sun Nov 28 23:45:59 JST 2021, status=COMPLETED, exitStatus=exitCode=COMPLETED;exitDescription=, job=[JobInstance: id=1, version=0, Job=[HelloWorldChunkjob]], jobParameters=[{run.id=1}]
+        Job: [SimpleJob: [name=HelloWorldChunkjob]] completed with the following parameters: [{run.id=1}] and the following status: [COMPLETED] in 80ms
+                    </code></pre>
+                    <br><br>
+                    [ポイント]
+                    <br>
+                    <ol>
+                        <li>Jobの実行前後、Stepの実行前後でログ出力されている。(正確にはJobとStepの終了直前)</li>
+                        <li>Listenerで実装したログ出力により、JobExecutionとStepExecutionの内容を確認できる。Statusが遷移していく様子が分かる。</li>
+                    </ol>
+                </ol>
+            </ul>
+            <ul>
+                <h2 id="3-4">3-4.Job/Stepの連携</h2>
+                SpringBatchでは1つのJob内で複数のStepを順序性を保って実行することが出来る。この際、Step間で変数を引き渡すことがしばしばある。
+                <br>
+                Step間の変数の引き渡しはStepContributionオブジェクトで行う。StepContributionオブジェクト構成イメージは以下の図の通り。
+                <br><br>
+                [StepContributionの構成イメージ]
+                <img class="img-fluid" src="./image/sb-var1.png">
+                <br><br>
+                各オブジェクトで用意されているgetterとsetterを利用して変数の受け渡しを行う。
+                <br>
+                具体的な実装は以下の通り。
+                <br><br>
+                <ul>
+                    <h3 id="3-4-1">3-4-1.Tasklet</h3>
+                    HelloTaskletからHelloTasklet2に変数を受け渡す処理を実装する。
+                    <br><br>
+                    <ol>
+                        <li>HelloTasklet.javaの修正</li>
+                        [HelloTasklet.java]
+                        <br>
+                        <pre class="pre-scrollable"><code>
+         package com.example.batch.tasklet;
+
+         import org.springframework.batch.core.StepContribution;
+         import org.springframework.batch.core.configuration.annotation.StepScope;
+         import org.springframework.batch.core.scope.context.ChunkContext;
+         import org.springframework.batch.core.step.tasklet.Tasklet;
+         import org.springframework.batch.item.ExecutionContext;
+         import org.springframework.batch.repeat.RepeatStatus;
+         import org.springframework.stereotype.Component;
+         import lombok.extern.slf4j.Slf4j;
+         
+         @Component("HelloTasklet") //Taskletの実装コンポーネントを複数定義するために、名前をつける。
+         @StepScope
+         @Slf4j
+         
+         public class HelloTasklet implements Tasklet{
+             
+             @Override
+             public RepeatStatus execute(StepContribution contribution, 
+                     ChunkContext chunkContext) throws Exception {
+                 log.info("Hello World");
+                 
+                 //↓↓HelloTasklet2に受け渡す変数をJobExecutionContextに設定する。
+                 ExecutionContext jobContext = contribution.getStepExecution()
+                         .getJobExecution()
+                         .getExecutionContext();
+                 
+                 jobContext.put("jobKey", "jobValue");
+                 //↑↑HelloTasklet2に受け渡す変数をJobExecutionContextに設定する。			
+         
+                 //↓↓HelloTasklet内でしか参照できない変数をStepExecutionContextに設定する。		
+                 ExecutionContext stepContext = contribution.getStepExecution()
+                         .getExecutionContext();
+                 
+                 stepContext.put("stepKey", "stepValue");
+                 //↑↑HelloTasklet内でしか参照できない変数をStepExecutionContextに設定する。		
+                 return RepeatStatus.FINISHED;
+             }
+         
+         }
+                            </code></pre>                                
+                            <br><br>
+                            [ポイント]
+                            <br>
+                            <ol>
+                                <li>
+                                    <code>@Component("HelloTasklet")</code>によりBean登録名を設定する。この後の実装で、Taskletインターフェースを実装するクラスはHelloTaskletとHelloTasklet2の2つとなる。
+                                    これらのクラスをDIするときにインターフェースを指定したいが、実装クラスが複数あるとSpringBootがDIするインスタンスを特定できずエラーとなる。
+                                    この問題を回避するために、Bean登録名をつけ、DIするときはこちらの名前を指定する。
+                                </li>
+                                <li>
+                                    以下のコードで<code>JobExecutionContext</code>に変数を設定している。後続で実装するTasklet2からこの変数を取得できることを確認する。
+                                    <br>
+                                    <code>
+                                        ExecutionContext jobContext = contribution.getStepExecution()<br>
+                                        .getJobExecution()<br>
+                                        .getExecutionContext();<br>
+                                        <br>
+                                        jobContext.put("jobKey", "jobValue");<br>
+                                    </code>
+                                </li>
+                                <li>
+                                    以下のコードで<code>StepExecutionContext</code>に変数を設定している。後続で実装するTasklet2からこの変数を取得できないことを確認する。
+                                    <br>
+                                    <code>
+                                        ExecutionContext stepContext = contribution.getStepExecution()<br>
+                                        .getExecutionContext();<br>
+                                        <br>
+                                        stepContext.put("stepKey", "stepValue");<br>
+                                    </code>
+                                </li>
+                            </ol>
+                            <br><br>
+                            <li>HelloTasklet2.javaの作成</li>
+                            <ol>
+                                <li>com.example.batch.taskletパッケージにHelloTasklet2クラスを新規作成する。</li>
+                                <li>
+                                    HelloTasklet2.javaに以下の処理を記述する。
+                                    <br><br>
+                                    [HelloTasklet2.java]
+                                    <br>
+                                    <pre Class="pre-scrollable"><code>
+        package com.example.batch.tasklet;
+
+        import org.springframework.batch.core.StepContribution;
+        import org.springframework.batch.core.configuration.annotation.StepScope;
+        import org.springframework.batch.core.scope.context.ChunkContext;
+        import org.springframework.batch.core.step.tasklet.Tasklet;
+        import org.springframework.batch.item.ExecutionContext;
+        import org.springframework.batch.repeat.RepeatStatus;
+        import org.springframework.stereotype.Component;
+        import org.springframework.beans.factory.annotation.Value;
+        import lombok.extern.slf4j.Slf4j;
+        
+        @Component("HelloTasklet2") //Taskletの実装コンポーネントを複数定義するために、名前をつける。
+        @StepScope
+        @Slf4j
+        
+        public class HelloTasklet2 implements Tasklet{
+        
+            @Value("#{JobExecutionContext['jobKey']")
+            private String jobValue;
+            
+            @Value("#{StepExecutionContext['stepKey']}")
+            private String stepValue;
+            
+            @Override
+            public RepeatStatus execute(StepContribution contribution, 
+                    ChunkContext chunkContext) throws Exception {
+            
+                log.info("Hello World2");
+                log.info("jobKey={}",jobValue);
+                log.info("stepKey={}",stepValue);
+                
+                return RepeatStatus.FINISHED;
+            }
+        
+        }                                   
+
+                                    </code></pre>
+                                    <br><br>
+                                    [ポイント]
+                                    <br>
+                                    <ol>
+                                        <li><code>@Component("HelloTasklet2")</code>でBean名を登録。Taskletを実装したクラスを複数登録するため。</li>
+                                        <li>
+                                            HelloTaskletではExecutionContextオブジェクトを取得し、putする方法で変数を設定した。同様にキー値でgetすることも可能だが、
+                                            HelloTasklet2ではよりコード量を削減する<code>@Value</code>を利用した。<br>
+                                            <code>#{JobExecutionContext[name]}</code>や<code>#{stepExecutionContext[name]}</code>はSpringBatchが用意しているプレースホルダとのこと。
+                                            通常、<code>@Value</code>はプロパティファイルが値を取得するためのアノテーションであるため、プレースホルダの使い方は独特のものと思慮。
+                                            このあたりの参考資料は以下となる。
+                                            <br>
+                                            [@Value使い方の分かりやすいサイト]
+                                            <br>
+                                            <a href src="https://qiita.com/tfunato/items/196a143d6cbf103b7893">https://qiita.com/tfunato/items/196a143d6cbf103b7893</a>
+                                            <br>
+                                            [公式ドキュメント]
+                                            <br>
+                                            <a href src="https://docs.spring.io/spring-batch/docs/current/reference/html/index-single.html#job-scope">https://docs.spring.io/spring-batch/docs/current/reference/html/index-single.html#job-scope</a>
+                                        </li>
+                                        <li>
+                                            <code>@Value</code>で<code>jobValue</code>と<code>stepValue</code>に格納した値をログ出力している。
+                                        </li>
+                                    </ol>
+                                    <br><br>
+                                </li>
+                            </ol>
+                            <li>BatchCongig,javaの修正</li>
+                            HelloTaskletの後にHelloTasklet2を実行するように修正を行う。
+                            <br><br>
+                            <pre class="pre-scrollable"><code>
+        package com.example.batch.config;
+        
+        import org.springframework.batch.core.Job;
+        import org.springframework.batch.core.Step;
+        import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
+        import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
+        import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+        import org.springframework.batch.core.launch.support.RunIdIncrementer;
+        import org.springframework.batch.core.step.tasklet.Tasklet;
+        import org.springframework.beans.factory.annotation.Autowired;
+        import org.springframework.beans.factory.annotation.Qualifier;
+        import org.springframework.context.annotation.Bean;
+        import org.springframework.context.annotation.Configuration;
+        
+        @Configuration
+        @EnableBatchProcessing
+        
+        public class BatchConfig {
+        
+            @Autowired
+            private JobBuilderFactory jobBuilderFactory;
+            
+            @Autowired
+            private StepBuilderFactory stepBuilderFactory;
+            
+            @Autowired
+            @Qualifier("HelloTasklet") //HelloTaskletのDIを追記
+            private Tasklet helloTasklet;
+            
+            @Autowired
+            @Qualifier("HelloTasklet2") //HelloTasklet2のDIを追記
+            private Tasklet helloTasklet2;
+            
+            @Bean
+            public Step taskletStep1() {	
+                return stepBuilderFactory.get("HelloTaskletStep1")
+                        .tasklet(helloTasklet)
+                        .build();		
+            }
+            
+            //↓↓HelloTasklet2のビルダー定義を追記
+            @Bean
+            public Step taskletStep2() {	
+                return stepBuilderFactory.get("HelloTaskletStep2")
+                        .tasklet(helloTasklet2)
+                        .build();		
+            }
+            //↑↑HelloTasklet2のビルダー定義を追記
+            
+            @Bean
+            public Job taskletJob() throws Exception{
+                return jobBuilderFactory.get("HelloWorldTaskletjob")
+                        .incrementer(new RunIdIncrementer())
+                        .start(taskletStep1())
+                        .next(taskletStep2()) //HelloTasklet2の呼び出しを追記
+                        .build();
+            }
+        }                                
+                            </code></pre>
+                            <br><br>
+                            [ポイント]
+                            <ol>
+                                <li>Taskletインターフェスの実装クラス(HelloTaskletとHelloTasklet2)をDIするために、<code>@Qualfier</code>でBean名を指定する。</li>
+                                <li>
+                                    <code>Step taskletStep2()</code>で、HelloTasklet2クラスで定義したStepの生成メソッドを記述する。
+                                </li>
+                                <li>
+                                    <code>Job taskletJob()</code>で<code>taskletStep2()</code>を呼び出す。<code>next</code>を利用することで順序性を定義する。
+                                </li>
+                            </ol>
+                            <li>アプリケーション実行結果の確認</li>
+                            アプリケーションを実行すると、以下のログが確認できる。
+                            <br><br>
+                            [実行結果(一部抜粋)]
+                            <pre class="pre-scrollable"><code>
+        Job: [SimpleJob: [name=HelloWorldTaskletjob]] launched with the following parameters: [{run.id=1}]
+        Executing step: [HelloTaskletStep1]
+        Hello World
+        Step: [HelloTaskletStep1] executed in 32ms
+        Executing step: [HelloTaskletStep2]
+        Hello World2
+        jobKey=jobValue
+        stepKey=null
+        Step: [HelloTaskletStep2] executed in 58ms
+        Job: [SimpleJob: [name=HelloWorldTaskletjob]] completed with the following parameters: [{run.id=1}] and the following status: [COMPLETED] in 116ms
+                            </code></pre>
+                            <br><br>
+                            [ポイント]
+                            <ol>
+                                <li>HelloTasklet→HelloTasklet2とStepが実行されていることが分かる。</li>
+                                <li>
+                                    HelloTasklet2のログ出力から、<code>@Value("#{JobExecutionContext['jobKey']}")</code>jobValueが取得出来ているのに対して、
+                                    <code>@Value("#{StepExecutionContext['stepKey']}")</code>では値が取得出来ていないことが分かる。冒頭で記載した、StepContributionの構成によるもの。                                    
+                                </li>
+                            </ol>
+                        </ol>                       
+                        <br><br> 
+                </ul>
+                <ul> 
+                    <h3 id="3-4-2">3-4-2.Chunk</h3>
+                    ChunkのStep間の変数受け渡しの実装の考え方はTaskletと同様となる。ただし、Chunkの場合は、Reader、Processor、Writerが一つのStep内で実装されている。
+                    このため、StepExecutionContextの変数をReader、Processor、Writer間で共有することが可能である。<br>
+                    異なるChunkStepをBatchConfig.javaで定義した場合は、Taskletと同様にJobExecutionContextで変数の受け渡しを行う。
+                </ul>
             </ul>
         </p>
     </div>
